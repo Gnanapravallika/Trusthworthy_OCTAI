@@ -31,7 +31,8 @@ def plot_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, classes: list,
     plt.yticks(rotation=0)
     plt.tight_layout()
     
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    if os.path.dirname(save_path):
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=300)
     plt.close()
 
@@ -114,6 +115,7 @@ def plot_reliability_diagram(confidences: np.ndarray, accuracies: np.ndarray, nu
     plt.tight_layout()
     
     if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        if os.path.dirname(save_path):
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300)
     plt.close()

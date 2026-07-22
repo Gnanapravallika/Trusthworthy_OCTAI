@@ -457,7 +457,7 @@ def run_experiment(
         cam_generator = LayerCAM(model, target_layer)
 
         for c_idx, c_name in enumerate(CLASSES):
-            match_rows = test_df[test_df['label'] == c_idx]
+            match_rows = test_df[(test_df['label'] == c_idx) | (test_df['label'] == c_name) | (test_df['label'].astype(str) == str(c_idx))]
             if len(match_rows) > 0:
                 sample_row = match_rows.iloc[0]
                 img_path = sample_row['image_path']
