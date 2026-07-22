@@ -1,0 +1,31 @@
+# TrustOCT Configuration File
+
+dataset:
+  train_csv: "e:/aiml master/octdl_dataset_mapping.csv"
+  external_csv: "e:/aiml master/octid_dataset_mapping.csv"
+  image_size: 224
+  batch_size: 32
+  num_workers: 4
+  num_classes: 4
+  classes: ["cnv", "dme", "drusen", "normal"]
+
+model:
+  backbone: "resnet50"          # Options: resnet50, densenet121, vit
+  feature_module: "multiscale"  # Options: multiscale, identity
+  attention: "cbam"             # Options: cbam, identity
+  dg: "mixstyle"                # Options: identity, mixstyle, coral (optional experimental baseline)
+  head: "evidential"            # Options: softmax, evidential
+
+losses:
+  kl_annealing_epochs: 10
+  coral_weight: 0.1             # Loss weight coefficient if using the optional CORAL baseline
+
+training:
+  epochs: 30
+  lr: 0.0001
+  weight_decay: 0.0001
+  patience: 5
+  mixed_precision: true
+  seed: 42
+  device: "cuda"                # Options: cuda, cpu
+  output_dir: "outputs/EXP007_TrustOCT"
