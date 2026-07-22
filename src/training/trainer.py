@@ -442,7 +442,10 @@ def run_experiment(
 
         # Save confusion matrix and reliability diagram
         plot_confusion_matrix(np.array(all_true), np.array(all_pred), CLASSES, os.path.join(output_dir, "confusion_matrix.png"))
-        plot_reliability_diagram(np.array(all_probs), np.array(all_true), os.path.join(output_dir, "reliability_diagram.png"))
+        all_probs_arr = np.array(all_probs)
+        confidences = np.max(all_probs_arr, axis=1)
+        accuracies = (np.array(all_pred) == np.array(all_true)).astype(int)
+        plot_reliability_diagram(confidences, accuracies, num_bins=10, save_path=os.path.join(output_dir, "reliability_diagram.png"))
         print(f"Saved confusion matrix and reliability diagram inside outputs/{experiment_id}/")
 
         # Save LayerCAM attributions in layercam/ folder
