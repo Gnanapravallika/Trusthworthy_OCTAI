@@ -70,15 +70,14 @@ venv.bak/
 .vscode/
 .idea/
 
-# Local data & models
+# Local data only (keep large raw datasets out of git)
 data/
-outputs/
 checkpoints/
-*.pth
-*.pt
-*.csv
-*.png
-*.jpg
-*.jpeg
-*.zip
 *.log
+
+# Allow outputs/ and result files to be tracked
+# (needed for Colab to push trained model results to GitHub)
+!outputs/
+!*.pth
+!*.csv
+!*.png
