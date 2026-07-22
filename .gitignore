@@ -75,9 +75,10 @@ data/
 checkpoints/
 *.log
 
-# Allow outputs/ and result files to be tracked
-# (needed for Colab to push trained model results to GitHub)
+# Allow outputs/ folder and result files to be tracked
+# BUT exclude large model weight files (>100MB, GitHub limit)
 !outputs/
-!*.pth
 !*.csv
 !*.png
+*.pth
+*.pt
