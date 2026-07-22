@@ -255,12 +255,12 @@ def run_experiment(
 
     # Map experiment IDs to structural configurations
     experiment_configs = {
-        'EXP001': {'feature': 'identity', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
-        'EXP002': {'feature': 'multiscale', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
-        'EXP003': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'softmax'},
-        'EXP004': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'softmax'},
-        'EXP005': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'evidential'},
-        'EXP006': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'evidential'}
+        'resnet50': {'feature': 'identity', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
+        'msf_resnet50': {'feature': 'multiscale', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
+        'msf_cbam_resnet50': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'softmax'},
+        'msf_cbam_mixstyle_resnet50': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'softmax'},
+        'msf_cbam_edl_resnet50': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'evidential'},
+        'trustoct': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'evidential'}
     }
 
     if experiment_id not in experiment_configs:
@@ -309,8 +309,8 @@ def run_experiment(
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    # 4. Trigger Training
-    output_dir = f'results/logs/{experiment_id}'
+    # 4. Trigger Training (save to outputs/)
+    output_dir = f'outputs/{experiment_id}'
     history = train_model(
         model=model, train_loader=train_loader, val_loader=val_loader, criterion=criterion,
         epochs=epochs, lr=lr, weight_decay=1e-4, patience=5, mixed_precision=True,
