@@ -23,7 +23,7 @@ def calculate_ece(confidences: np.ndarray, accuracies: np.ndarray, num_bins: int
             
     return float(ece)
 
-def calculate_brier_score(probabilities: np.ndarray, targets: np.ndarray, num_classes: int = 7) -> float:
+def calculate_brier_score(probabilities: np.ndarray, targets: np.ndarray, num_classes: int = 4) -> float:
     """
     Computes the quadratic Brier Score for multi-class predictions.
     BS = (1/N) * sum_i (sum_k (p_ik - y_ik)^2)

@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, cohen_kappa_score, confusion_matrix
 
-def compute_multiclass_specificity(y_true: np.ndarray, y_pred: np.ndarray, num_classes: int = 7) -> float:
+def compute_multiclass_specificity(y_true: np.ndarray, y_pred: np.ndarray, num_classes: int = 4) -> float:
     """
     Computes macro-averaged Specificity (True Negative Rate) across all classes.
     """
@@ -21,7 +21,7 @@ def compute_multiclass_specificity(y_true: np.ndarray, y_pred: np.ndarray, num_c
         
     return float(np.mean(specificities))
 
-def evaluate_classification_metrics(y_true: list, y_pred: list, num_classes: int = 7) -> dict:
+def evaluate_classification_metrics(y_true: list, y_pred: list, num_classes: int = 4) -> dict:
     """
     Computes a complete suite of diagnostic performance metrics.
     """
