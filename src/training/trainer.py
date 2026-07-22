@@ -235,3 +235,85 @@ def train_model(
     df_hist.to_csv(os.path.join(output_dir, "metrics.csv"), index=False)
     
     return history
+
+def run_experiment(
+    experiment_id: str,
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    epochs: int = 30,
+    lr: float = 1e-4,
+    batch_size: int = 32,
+    device_name: str = 'cuda'
+) -> dict:
+    """
+    Simpler master runner function to execute individual dissertation experiments cleanly.
+    """
+    from src.models.builder import build_model
+    from src.preprocessing.standardizer import RetinalPipelineTransform
+    from src.datasets.dataset import RetinalDataset
+    from src.losses.loss_functions import get_loss_function
+
+    # Map experiment IDs to structural configurations
+    experiment_configs = {
+        'EXP001': {'feature': 'identity', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
+        'EXP002': {'feature': 'multiscale', 'attention': 'identity', 'dg': 'identity', 'head': 'softmax'},
+        'EXP003': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'softmax'},
+        'EXP004': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'softmax'},
+        'EXP005': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'identity', 'head': 'evidential'},
+        'EXP006': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'evidential'}
+    }
+
+    if experiment_id not in experiment_configs:
+        raise ValueError(f"Unknown experiment ID: {experiment_id}. Must be one of {list(experiment_configs.keys())}")
+
+    exp = experiment_configs[experiment_id]
+    config = {
+        'model': {
+            'backbone': 'resnet50',
+            'feature_module': exp['feature'],
+            'attention': exp['attention'],
+            'dg': exp['dg'],
+            'head': exp['head']
+        },
+        'dataset': {
+            'num_classes': 4
+        }
+    }
+
+    # 1. Print configuration summary
+    loss_name = 'Evidential Loss' if exp['head'] == 'evidential' else 'Cross Entropy'
+    print('+' + '-'*40 + '+')
+    print(f'| Experiment : {experiment_id:<27} |')
+    print(f'| Backbone   : resnet50                     |')
+    print(f'| Feature    : {exp["feature"]:<27} |')
+    print(f'| Attention  : {exp["attention"]:<27} |')
+    print(f'| DG         : {exp["dg"]:<27} |')
+    print(f'| Head       : {exp["head"]:<27} |')
+    print(f'| Loss       : {loss_name:<27} |')
+    print(f'| Optimizer  : AdamW                       |')
+    print(f'| Scheduler  : Cosine Annealing            |')
+    print('+' + '-'*40 + '+')
+
+    # 2. Setup Reproducibility & Build Model
+    enforce_seeds(42)
+    model = build_model(config)
+    is_evidential = (exp['head'] == 'evidential')
+    criterion = get_loss_function('evidential' if is_evidential else 'cross_entropy', num_classes=4)
+
+    # 3. Setup Dataset Loaders
+    transform_train = RetinalPipelineTransform(is_training=True)
+    transform_val = RetinalPipelineTransform(is_training=False)
+    train_dataset = RetinalDataset(train_df, transform=transform_train, apply_bilateral=True)
+    val_dataset = RetinalDataset(val_df, transform=transform_val, apply_bilateral=True)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    # 4. Trigger Training
+    output_dir = f'results/logs/{experiment_id}'
+    history = train_model(
+        model=model, train_loader=train_loader, val_loader=val_loader, criterion=criterion,
+        epochs=epochs, lr=lr, weight_decay=1e-4, patience=5, mixed_precision=True,
+        device_name=device_name, output_dir=output_dir, is_evidential=is_evidential
+    )
+    return history
