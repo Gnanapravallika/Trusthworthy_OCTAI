@@ -72,8 +72,9 @@ def train_epoch(
     running_loss = 0.0
     correct = 0
     total = 0
+    num_batches = len(loader)
     
-    for inputs, targets in loader:
+    for batch_idx, (inputs, targets) in enumerate(loader):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         
@@ -113,6 +114,13 @@ def train_epoch(
         correct += (preds == targets).sum().item()
         total += targets.size(0)
         
+        # Print progress every 100 batches so training doesn't appear frozen
+        if (batch_idx + 1) % 100 == 0 or (batch_idx + 1) == num_batches:
+            batch_loss = running_loss / total
+            batch_acc = correct / total
+            print(f"  Batch [{batch_idx+1:4d}/{num_batches}] - Loss: {batch_loss:.4f}, Acc: {batch_acc:.4f}", end='\r')
+    
+    print()  # New line after batch progress
     epoch_loss = running_loss / total
     epoch_acc = correct / total
     return epoch_loss, epoch_acc
