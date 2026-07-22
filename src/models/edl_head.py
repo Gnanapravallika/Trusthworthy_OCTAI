@@ -7,7 +7,7 @@ class EvidentialHead(nn.Module):
     Evidential Deep Learning Head. Replaces standard Softmax with a Dirichlet-parameterized
     evidentiary classifier. Uses a Softplus activation to ensure non-negative evidence.
     """
-    def __init__(self, in_features: int = 2048, num_classes: int = 7, dropout_rate: float = 0.5):
+    def __init__(self, in_features: int = 2048, num_classes: int = 4, dropout_rate: float = 0.5):
         super().__init__()
         self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(p=dropout_rate)

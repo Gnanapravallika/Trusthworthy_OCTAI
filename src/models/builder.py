@@ -25,7 +25,7 @@ class TrustOCTModel(nn.Module):
         attention_module: str = "cbam",
         dg_module: str = "mixstyle",
         head_name: str = "evidential",
-        num_classes: int = 7,
+        num_classes: int = 4,
         pretrained: bool = True
     ):
         super().__init__()
@@ -106,6 +106,6 @@ def build_model(config: dict) -> nn.Module:
         attention_module=model_cfg.get("attention", "cbam"),
         dg_module=model_cfg.get("dg", "mixstyle"),
         head_name=model_cfg.get("head", "evidential"),
-        num_classes=dataset_cfg.get("num_classes", 7),
+        num_classes=dataset_cfg.get("num_classes", 4),
         pretrained=True
     )
