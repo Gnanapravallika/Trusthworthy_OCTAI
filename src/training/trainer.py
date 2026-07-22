@@ -324,13 +324,16 @@ def run_experiment(
     criterion = get_loss_function('evidential' if is_evidential else 'cross_entropy', num_classes=4)
 
     # 3. Setup Dataset Loaders
+    import platform
+    num_workers = 2 if platform.system() != 'Windows' else 0
+    
     transform_train = RetinalPipelineTransform(is_training=True)
     transform_val = RetinalPipelineTransform(is_training=False)
     train_dataset = RetinalDataset(train_df, transform=transform_train, apply_bilateral=True)
     val_dataset = RetinalDataset(val_df, transform=transform_val, apply_bilateral=True)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # 4. Trigger Training (save to outputs/)
     output_dir = f'outputs/{experiment_id}'
@@ -368,7 +371,7 @@ def run_experiment(
 
         # Setup test loader
         test_dataset = RetinalDataset(test_df, transform=transform_val, apply_bilateral=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         # Gather predictions
         all_paths = []

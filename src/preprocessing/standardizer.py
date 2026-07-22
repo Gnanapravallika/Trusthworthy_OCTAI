@@ -37,12 +37,15 @@ def load_and_preprocess_scan(
     apply_min_max: bool = False
 ) -> Image.Image:
     """
-    Loads a single B-scan from disk and applies selected signal preprocessing filters.
-    Returns a PIL Image converted to 3-channel RGB for PyTorch backbones.
+    Loads a single B-scan from disk, resizes to target resolution (224x224) to optimize 
+    bilateral filtering speed, and applies signal preprocessing filters.
     """
     img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise FileNotFoundError(f"Could not load image at path: {file_path}")
+        
+    # Resize first to target size to speed up bilateral filtering exponentially
+    img = cv2.resize(img, (224, 224))
         
     if apply_bilateral:
         img = bilateral_filter(img)
