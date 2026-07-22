@@ -337,8 +337,8 @@ def run_experiment(
     train_dataset = RetinalDataset(train_df, transform=transform_train, apply_bilateral=True)
     val_dataset = RetinalDataset(val_df, transform=transform_val, apply_bilateral=True)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
     # 4. Trigger Training (save to outputs/)
     output_dir = f'outputs/{experiment_id}'
@@ -376,7 +376,7 @@ def run_experiment(
 
         # Setup test loader
         test_dataset = RetinalDataset(test_df, transform=transform_val, apply_bilateral=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
         # Gather predictions
         all_paths = []
