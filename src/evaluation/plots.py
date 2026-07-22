@@ -35,10 +35,24 @@ def plot_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, classes: list,
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-def plot_reliability_diagram(confidences: np.ndarray, accuracies: np.ndarray, num_bins: int = 10, save_path: str = None):
+def plot_reliability_diagram(confidences: np.ndarray, accuracies: np.ndarray, num_bins = 10, save_path: str = None):
     """
     Generates and saves a reliability diagram for calibration diagnostics.
     """
+    # Robust parameter handling if 3rd positional argument is save_path string
+    if isinstance(num_bins, str):
+        save_path = num_bins
+        num_bins = 10
+
+    confidences = np.array(confidences)
+    accuracies = np.array(accuracies)
+
+    # Handle 2D probability matrix if passed directly
+    if confidences.ndim == 2:
+        preds = np.argmax(confidences, axis=1)
+        accuracies = (preds == accuracies).astype(int)
+        confidences = np.max(confidences, axis=1)
+
     bin_boundaries = np.linspace(0, 1, num_bins + 1)
     bin_accs = []
     bin_confs = []
