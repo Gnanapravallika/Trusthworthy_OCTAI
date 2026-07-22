@@ -7,8 +7,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler, autocast
 from src.models.edl_head import get_evidence_metrics
+try:
+    from torch.amp import GradScaler, autocast
+    HAS_NEW_AMP = True
+except ImportError:
+    from torch.cuda.amp import GradScaler, autocast
+    HAS_NEW_AMP = False
 
 def enforce_seeds(seed: int = 42):
     """
@@ -35,14 +40,14 @@ class EarlyStopping:
         self.early_stop = False
         self.best_weights = None
 
-    def __call__(self, val_loss: float, model: nn.Module):
+    def __call__(self, val_loss, model):
         if self.best_loss is None:
             self.best_loss = val_loss
             self.best_weights = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-        elif val_loss >= self.best_loss:
+        elif val_loss > self.best_loss:
             self.counter += 1
             if self.verbose:
-                print(f"EarlyStopping Counter: {self.counter} out of {self.patience}")
+                print(f"[EarlyStopping] Counter: {self.counter} out of {self.patience}")
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
@@ -58,7 +63,7 @@ def train_epoch(
     device: torch.device, 
     epoch: int,
     is_evidential: bool,
-    scaler: GradScaler = None
+    scaler = None
 ) -> tuple:
     """
     Trains the model for one epoch.
@@ -74,7 +79,8 @@ def train_epoch(
         
         # GPU Mixed Precision Autocast
         if scaler is not None:
-            with autocast():
+            context = autocast(device_type='cuda') if HAS_NEW_AMP else autocast()
+            with context:
                 outputs = model(inputs)
                 if is_evidential:
                     loss = criterion(outputs, targets, epoch)
@@ -123,6 +129,7 @@ def validate_epoch(
     """
     Evaluates the model on validation set.
     """
+    model.train() if not is_evidential else model.eval() # Ensure dropout/MixStyle behavior if needed, otherwise eval
     model.eval()
     running_loss = 0.0
     correct = 0
@@ -175,11 +182,15 @@ def train_model(
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     
     # 2. Setup Mixed Precision and Early Stopping
-    scaler = GradScaler() if (mixed_precision and device.type == "cuda") else None
+    if mixed_precision and device.type == "cuda":
+        scaler = GradScaler('cuda') if HAS_NEW_AMP else GradScaler()
+    else:
+        scaler = None
     early_stopping = EarlyStopping(patience=patience, verbose=True)
     
     history = []
     best_val_loss = float("inf")
+    best_epoch = 0
     
     start_time = time.time()
     
@@ -214,6 +225,7 @@ def train_model(
         # Save checkpoints
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            best_epoch = epoch + 1
             # Save best model checkpoint
             torch.save(model.state_dict(), os.path.join(output_dir, "weights_best.pth"))
             print(f"[BEST] Saved new best model checkpoint (Val Loss: {val_loss:.4f})")
@@ -228,7 +240,17 @@ def train_model(
             break
             
     total_time = time.time() - start_time
-    print(f"[INFO] Training complete in {total_time // 60:.0f}m {total_time % 60:.0f}s.")
+    duration_min = int(total_time // 60)
+    duration_sec = int(total_time % 60)
+    duration_str = f"{duration_min}m {duration_sec}s"
+    
+    print("\n" + "="*40)
+    model_name = os.path.basename(output_dir)
+    print(f"Experiment: {model_name}")
+    print(f"Training Time: {duration_str}")
+    print(f"Best Epoch: {best_epoch}")
+    print(f"Best Validation Loss: {best_val_loss:.4f}")
+    print("="*40 + "\n")
     
     # Save training history log
     df_hist = pd.DataFrame(history)
