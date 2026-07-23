@@ -37,13 +37,14 @@ class EvidentialDirichletLoss(nn.Module):
              
         return kl.squeeze(1)
 
-    def forward(self, alpha: torch.Tensor, target: torch.Tensor, epoch: int, kl_annealing_epochs: int = None) -> torch.Tensor:
+    def forward(self, alpha: torch.Tensor, target: torch.Tensor, epoch: int, kl_annealing_epochs: int = None, return_components: bool = False):
         """
         Args:
             alpha: Dirichlet parameters of shape (B, K)
             target: Ground truth labels (B,) with integer values in [0, K-1]
             epoch: Current training epoch (0-indexed)
             kl_annealing_epochs: Epoch duration for scaling the KL regularization term to 1.0
+            return_components: If True, returns (total_loss, mean_mse_loss, mean_kl_loss)
         """
         if kl_annealing_epochs is None:
             kl_annealing_epochs = self.kl_annealing_epochs
@@ -68,8 +69,15 @@ class EvidentialDirichletLoss(nn.Module):
         else:
             annealing_coef = 1.0
             
-        loss = mse_loss.squeeze(1) + (self.kl_weight * annealing_coef) * kl_loss
-        return torch.mean(loss)
+        total_loss = mse_loss.squeeze(1) + (self.kl_weight * annealing_coef) * kl_loss
+        mean_total = torch.mean(total_loss)
+        
+        if return_components:
+            mean_mse = torch.mean(mse_loss.squeeze(1))
+            mean_kl = torch.mean(kl_loss)
+            return mean_total, mean_mse, mean_kl
+            
+        return mean_total
 
 def get_loss_function(name: str = "evidential", num_classes: int = 4, kl_weight: float = 1.0, kl_annealing_epochs: int = 10) -> nn.Module:
     """

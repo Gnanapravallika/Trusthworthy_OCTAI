@@ -70,6 +70,8 @@ def train_epoch(
     """
     model.train()
     running_loss = 0.0
+    running_mse = 0.0
+    running_kl = 0.0
     correct = 0
     total = 0
     num_batches = len(loader)
@@ -84,7 +86,12 @@ def train_epoch(
             with context:
                 outputs = model(inputs)
                 if is_evidential:
-                    loss = criterion(outputs, targets, epoch)
+                    try:
+                        loss, mse_v, kl_v = criterion(outputs, targets, epoch, return_components=True)
+                        running_mse += mse_v.item() * inputs.size(0)
+                        running_kl += kl_v.item() * inputs.size(0)
+                    except Exception:
+                        loss = criterion(outputs, targets, epoch)
                 else:
                     loss = criterion(outputs, targets)
             
@@ -94,7 +101,12 @@ def train_epoch(
         else:
             outputs = model(inputs)
             if is_evidential:
-                loss = criterion(outputs, targets, epoch)
+                try:
+                    loss, mse_v, kl_v = criterion(outputs, targets, epoch, return_components=True)
+                    running_mse += mse_v.item() * inputs.size(0)
+                    running_kl += kl_v.item() * inputs.size(0)
+                except Exception:
+                    loss = criterion(outputs, targets, epoch)
             else:
                 loss = criterion(outputs, targets)
             loss.backward()
@@ -104,17 +116,14 @@ def train_epoch(
         
         # Calculate training accuracy
         if is_evidential:
-            # outputs = alpha parameters of Dirichlet distribution
             probs, _ = get_evidence_metrics(outputs)
             preds = torch.argmax(probs, dim=1)
         else:
-            # outputs = logits
             preds = torch.argmax(outputs, dim=1)
             
         correct += (preds == targets).sum().item()
         total += targets.size(0)
         
-        # Print progress every 100 batches so training doesn't appear frozen
         if (batch_idx + 1) % 100 == 0 or (batch_idx + 1) == num_batches:
             batch_loss = running_loss / total
             batch_acc = correct / total
@@ -123,7 +132,9 @@ def train_epoch(
     print()  # New line after batch progress
     epoch_loss = running_loss / total
     epoch_acc = correct / total
-    return epoch_loss, epoch_acc
+    epoch_mse = running_mse / total if is_evidential else epoch_loss
+    epoch_kl = running_kl / total if is_evidential else 0.0
+    return epoch_loss, epoch_acc, epoch_mse, epoch_kl
 
 @torch.no_grad()
 def validate_epoch(
@@ -137,9 +148,10 @@ def validate_epoch(
     """
     Evaluates the model on validation set.
     """
-    model.train() if not is_evidential else model.eval() # Ensure dropout/MixStyle behavior if needed, otherwise eval
     model.eval()
     running_loss = 0.0
+    running_mse = 0.0
+    running_kl = 0.0
     correct = 0
     total = 0
     
@@ -148,7 +160,12 @@ def validate_epoch(
         
         outputs = model(inputs)
         if is_evidential:
-            loss = criterion(outputs, targets, epoch)
+            try:
+                loss, mse_v, kl_v = criterion(outputs, targets, epoch, return_components=True)
+                running_mse += mse_v.item() * inputs.size(0)
+                running_kl += kl_v.item() * inputs.size(0)
+            except Exception:
+                loss = criterion(outputs, targets, epoch)
             probs, _ = get_evidence_metrics(outputs)
             preds = torch.argmax(probs, dim=1)
         else:
@@ -161,7 +178,9 @@ def validate_epoch(
         
     epoch_loss = running_loss / total
     epoch_acc = correct / total
-    return epoch_loss, epoch_acc
+    epoch_mse = running_mse / total if is_evidential else epoch_loss
+    epoch_kl = running_kl / total if is_evidential else 0.0
+    return epoch_loss, epoch_acc, epoch_mse, epoch_kl
 
 def train_model(
     model: nn.Module,
@@ -203,11 +222,11 @@ def train_model(
     start_time = time.time()
     
     for epoch in range(epochs):
-        train_loss, train_acc = train_epoch(
+        train_loss, train_acc, train_mse, train_kl = train_epoch(
             model, train_loader, optimizer, criterion, device, epoch, is_evidential, scaler
         )
         
-        val_loss, val_acc = validate_epoch(
+        val_loss, val_acc, val_mse, val_kl = validate_epoch(
             model, val_loader, criterion, device, epoch, is_evidential
         )
         
@@ -216,16 +235,20 @@ def train_model(
         
         print(
             f"Epoch [{epoch+1:02d}/{epochs:02d}] - "
-            f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | "
-            f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f} | "
+            f"Train Loss: {train_loss:.4f} (MSE:{train_mse:.4f}, KL:{train_kl:.4f}), Train Acc: {train_acc:.4f} | "
+            f"Val Loss: {val_loss:.4f} (MSE:{val_mse:.4f}, KL:{val_kl:.4f}), Val Acc: {val_acc:.4f} | "
             f"LR: {current_lr:.6f}"
         )
         
         history.append({
             "epoch": epoch + 1,
             "train_loss": train_loss,
+            "train_mse": train_mse,
+            "train_kl": train_kl,
             "train_acc": train_acc,
             "val_loss": val_loss,
+            "val_mse": val_mse,
+            "val_kl": val_kl,
             "val_acc": val_acc,
             "lr": current_lr
         })
