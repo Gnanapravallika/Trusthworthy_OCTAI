@@ -274,7 +274,11 @@ def run_experiment(
     epochs: int = 30,
     lr: float = 1e-4,
     batch_size: int = 32,
-    device_name: str = 'cuda'
+    device_name: str = 'cuda',
+    patience: int = 5,
+    kl_weight: float = 1.0,
+    kl_annealing_epochs: int = 10,
+    custom_output_dir: str = None
 ) -> dict:
     """
     Simpler master runner function to execute individual dissertation experiments cleanly.
@@ -294,10 +298,12 @@ def run_experiment(
         'trustoct': {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'evidential'}
     }
 
-    if experiment_id not in experiment_configs:
-        raise ValueError(f"Unknown experiment ID: {experiment_id}. Must be one of {list(experiment_configs.keys())}")
+    if experiment_id in experiment_configs:
+        exp = experiment_configs[experiment_id]
+    else:
+        # Default to full trustoct for custom ablation experiment IDs (e.g. trustoct_expA, etc.)
+        exp = {'feature': 'multiscale', 'attention': 'cbam', 'dg': 'mixstyle', 'head': 'evidential'}
 
-    exp = experiment_configs[experiment_id]
     config = {
         'model': {
             'backbone': 'resnet50',
@@ -312,24 +318,24 @@ def run_experiment(
     }
 
     # 1. Print configuration summary
-    loss_name = 'Evidential Loss' if exp['head'] == 'evidential' else 'Cross Entropy'
-    print('+' + '-'*40 + '+')
-    print(f'| Experiment : {experiment_id:<27} |')
-    print(f'| Backbone   : resnet50                     |')
-    print(f'| Feature    : {exp["feature"]:<27} |')
-    print(f'| Attention  : {exp["attention"]:<27} |')
-    print(f'| DG         : {exp["dg"]:<27} |')
-    print(f'| Head       : {exp["head"]:<27} |')
-    print(f'| Loss       : {loss_name:<27} |')
-    print(f'| Optimizer  : AdamW                       |')
-    print(f'| Scheduler  : Cosine Annealing            |')
-    print('+' + '-'*40 + '+')
+    loss_name = f'Evidential Loss (KL weight={kl_weight}, annealing={kl_annealing_epochs})' if exp['head'] == 'evidential' else 'Cross Entropy'
+    print('+' + '-'*50 + '+')
+    print(f'| Experiment : {experiment_id:<37} |')
+    print(f'| Backbone   : resnet50                             |')
+    print(f'| Feature    : {exp["feature"]:<37} |')
+    print(f'| Attention  : {exp["attention"]:<37} |')
+    print(f'| DG         : {exp["dg"]:<37} |')
+    print(f'| Head       : {exp["head"]:<37} |')
+    print(f'| LR         : {lr:<37} |')
+    print(f'| Patience   : {patience:<37} |')
+    print(f'| Loss       : {loss_name:<37} |')
+    print('+' + '-'*50 + '+')
 
     # 2. Setup Reproducibility & Build Model
     enforce_seeds(42)
     model = build_model(config)
     is_evidential = (exp['head'] == 'evidential')
-    criterion = get_loss_function('evidential' if is_evidential else 'cross_entropy', num_classes=4)
+    criterion = get_loss_function('evidential' if is_evidential else 'cross_entropy', num_classes=4, kl_weight=kl_weight, kl_annealing_epochs=kl_annealing_epochs)
 
     # 3. Setup Dataset Loaders
     transform_train = RetinalPipelineTransform(is_training=True)
@@ -341,10 +347,10 @@ def run_experiment(
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
     # 4. Trigger Training (save to outputs/)
-    output_dir = f'outputs/{experiment_id}'
+    output_dir = custom_output_dir if custom_output_dir else f'outputs/{experiment_id}'
     history = train_model(
         model=model, train_loader=train_loader, val_loader=val_loader, criterion=criterion,
-        epochs=epochs, lr=lr, weight_decay=1e-4, patience=5, mixed_precision=True,
+        epochs=epochs, lr=lr, weight_decay=1e-4, patience=patience, mixed_precision=True,
         device_name=device_name, output_dir=output_dir, is_evidential=is_evidential
     )
 

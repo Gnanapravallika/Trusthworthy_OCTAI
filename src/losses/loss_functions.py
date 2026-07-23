@@ -8,9 +8,11 @@ class EvidentialDirichletLoss(nn.Module):
     Evidential Dirichlet Loss with KL Annealing for Evidential Deep Learning.
     References: Sensoy et al., "Evidential Deep Learning on Joint Predictions", NeurIPS 2018.
     """
-    def __init__(self, num_classes: int = 4):
+    def __init__(self, num_classes: int = 4, kl_weight: float = 1.0, kl_annealing_epochs: int = 10):
         super().__init__()
         self.num_classes = num_classes
+        self.kl_weight = kl_weight
+        self.kl_annealing_epochs = kl_annealing_epochs
 
     def kl_divergence(self, alpha_tilde: torch.Tensor) -> torch.Tensor:
         """
@@ -37,7 +39,7 @@ class EvidentialDirichletLoss(nn.Module):
              
         return kl.squeeze(1)
 
-    def forward(self, alpha: torch.Tensor, target: torch.Tensor, epoch: int, kl_annealing_epochs: int = 10) -> torch.Tensor:
+    def forward(self, alpha: torch.Tensor, target: torch.Tensor, epoch: int, kl_annealing_epochs: int = None) -> torch.Tensor:
         """
         Args:
             alpha: Dirichlet parameters of shape (B, K)
@@ -45,6 +47,9 @@ class EvidentialDirichletLoss(nn.Module):
             epoch: Current training epoch (0-indexed)
             kl_annealing_epochs: Epoch duration for scaling the KL regularization term to 1.0
         """
+        if kl_annealing_epochs is None:
+            kl_annealing_epochs = self.kl_annealing_epochs
+            
         device = alpha.device
         B = alpha.size(0)
         
@@ -67,22 +72,25 @@ class EvidentialDirichletLoss(nn.Module):
         kl_loss = self.kl_divergence(alpha_tilde)
         
         # Compute annealing coefficient lambda_t
-        # Linearly increases from 0.0 to 1.0 over kl_annealing_epochs
         if kl_annealing_epochs > 0:
             annealing_coef = min(1.0, float(epoch) / float(kl_annealing_epochs))
         else:
             annealing_coef = 1.0
             
-        loss = mse_loss.squeeze(1) + annealing_coef * kl_loss
+        loss = mse_loss.squeeze(1) + (self.kl_weight * annealing_coef) * kl_loss
         return torch.mean(loss)
 
-def get_loss_function(name: str = "evidential", num_classes: int = 4) -> nn.Module:
+def get_loss_function(name: str = "evidential", num_classes: int = 4, kl_weight: float = 1.0, kl_annealing_epochs: int = 10) -> nn.Module:
     """
     Factory function to retrieve the configured loss module.
     """
     name = name.lower()
     if name == "evidential" or name == "edl":
-        return EvidentialDirichletLoss(num_classes=num_classes)
+        return EvidentialDirichletLoss(num_classes=num_classes, kl_weight=kl_weight, kl_annealing_epochs=kl_annealing_epochs)
+    elif name == "cross_entropy" or name == "ce":
+        return nn.CrossEntropyLoss()
+    else:
+        raise ValueError(f"Unsupported loss name: {name}")
     elif name == "cross_entropy" or name == "ce":
         return nn.CrossEntropyLoss()
     else:
