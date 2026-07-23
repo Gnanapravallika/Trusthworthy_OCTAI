@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.models.coral import coral_loss
 
 class EvidentialDirichletLoss(nn.Module):
     """
@@ -30,7 +29,6 @@ class EvidentialDirichletLoss(nn.Module):
         sum_ln_gamma_alpha = torch.sum(torch.lgamma(alpha_tilde), dim=1, keepdim=True)
         sum_ln_gamma_beta = torch.sum(torch.lgamma(beta), dim=1, keepdim=True)
         
-        # Digamma terms
         digamma_alpha = torch.digamma(alpha_tilde)
         digamma_sum_alpha = torch.digamma(sum_alpha)
         
@@ -53,25 +51,18 @@ class EvidentialDirichletLoss(nn.Module):
         device = alpha.device
         B = alpha.size(0)
         
-        # Convert target integers to one-hot encoding
         y = F.one_hot(target, num_classes=self.num_classes).float()
         
-        # Compute Dirichlet strength S
         S = torch.sum(alpha, dim=1, keepdim=True)
         p = alpha / S
         
-        # 1. Mean Squared Error (MSE) / Likelihood term
-        # Measures the prediction accuracy and variance
         error_term = torch.sum((y - p) ** 2, dim=1, keepdim=True)
         variance_term = torch.sum(p * (1.0 - p) / (S + 1.0), dim=1, keepdim=True)
         mse_loss = error_term + variance_term
         
-        # 2. KL Divergence Regularization term
-        # Penalizes evidence on incorrect classes by driving them towards alpha=1 (uniform distribution)
         alpha_tilde = y + (1.0 - y) * alpha
         kl_loss = self.kl_divergence(alpha_tilde)
         
-        # Compute annealing coefficient lambda_t
         if kl_annealing_epochs > 0:
             annealing_coef = min(1.0, float(epoch) / float(kl_annealing_epochs))
         else:
@@ -85,13 +76,9 @@ def get_loss_function(name: str = "evidential", num_classes: int = 4, kl_weight:
     Factory function to retrieve the configured loss module.
     """
     name = name.lower()
-    if name == "evidential" or name == "edl":
+    if name in ["evidential", "edl"]:
         return EvidentialDirichletLoss(num_classes=num_classes, kl_weight=kl_weight, kl_annealing_epochs=kl_annealing_epochs)
-    elif name == "cross_entropy" or name == "ce":
-        return nn.CrossEntropyLoss()
-    else:
-        raise ValueError(f"Unsupported loss name: {name}")
-    elif name == "cross_entropy" or name == "ce":
+    elif name in ["cross_entropy", "ce"]:
         return nn.CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported loss name: {name}")
