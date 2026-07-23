@@ -8,7 +8,7 @@ class EvidentialDirichletLoss(nn.Module):
     Evidential Dirichlet Loss with KL Annealing for Evidential Deep Learning.
     References: Sensoy et al., "Evidential Deep Learning on Joint Predictions", NeurIPS 2018.
     """
-    def __init__(self, num_classes: int = 7):
+    def __init__(self, num_classes: int = 4):
         super().__init__()
         self.num_classes = num_classes
 
@@ -76,7 +76,7 @@ class EvidentialDirichletLoss(nn.Module):
         loss = mse_loss.squeeze(1) + annealing_coef * kl_loss
         return torch.mean(loss)
 
-def get_loss_function(name: str = "evidential", num_classes: int = 7) -> nn.Module:
+def get_loss_function(name: str = "evidential", num_classes: int = 4) -> nn.Module:
     """
     Factory function to retrieve the configured loss module.
     """
