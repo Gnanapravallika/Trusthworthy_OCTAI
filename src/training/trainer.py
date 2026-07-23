@@ -253,16 +253,16 @@ def train_model(
             "lr": current_lr
         })
         
-        # Save checkpoints
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        # Save checkpoints (for evidential models, monitor val_mse to avoid KL annealing distortion)
+        monitor_score = val_mse if is_evidential else val_loss
+        if monitor_score < best_val_loss:
+            best_val_loss = monitor_score
             best_epoch = epoch + 1
-            # Save best model checkpoint
             torch.save(model.state_dict(), os.path.join(output_dir, "weights_best.pth"))
-            print(f"[BEST] Saved new best model checkpoint (Val Loss: {val_loss:.4f})")
+            print(f"[BEST] Saved new best model checkpoint (Val Metric: {monitor_score:.4f})")
             
         # Check early stopping
-        early_stopping(val_loss, model)
+        early_stopping(monitor_score, model)
         if early_stopping.early_stop:
             print("[EARLY STOP] Early stopping triggered. Restoration of best parameters...")
             model.load_state_dict(early_stopping.best_weights)
