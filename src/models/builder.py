@@ -50,12 +50,12 @@ class TrustOCTModel(nn.Module):
         else:
             self.attention = nn.Identity()
             
-        # 4. Initialize Domain Generalization Module
+        # 4. Initialize Domain Generalization Module (MixStyle applied at mid-level x3)
         self.dg_module_name = dg_module.lower()
         if self.dg_module_name == "mixstyle":
             self.dg = MixStyle(p=0.5, alpha=0.1)
         elif self.dg_module_name == "coral":
-            self.dg = CORALAlignment()  # Optional experimental baseline
+            self.dg = CORALAlignment()
         else:
             self.dg = nn.Identity()
             
@@ -67,27 +67,27 @@ class TrustOCTModel(nn.Module):
             self.head = SoftmaxHead(in_features=in_planes, num_classes=num_classes)
 
     def forward(self, x: torch.Tensor, return_features: bool = False):
-        # 1. Feature Extraction
+        # 1. Feature Extraction (x3: 1024-ch, x4: 2048-ch)
         x3, x4 = self.backbone(x)
         
-        # 2. Multi-Scale Fusion
+        # 2. Domain Generalization: Apply MixStyle at mid-level (x3) to mix scanner style statistics
+        if self.dg_module_name == "mixstyle":
+            x3 = self.dg(x3)
+            
+        # 3. Multi-Scale Feature Fusion
         if self.feature_module_name == "multiscale":
             x_fused = self.fusion(x3, x4)
         else:
             x_fused = x4
             
-        # 3. Attention gating
+        # 4. Attention gating
         x_att = self.attention(x_fused)
         
-        # 4. Domain Generalization features
-        x_dg = self.dg(x_att)
-        
-        # 5. Classification
-        out = self.head(x_dg)
+        # 5. Classification Head
+        out = self.head(x_att)
         
         if return_features:
-            # We average pool features to return clean 1D vectors for t-SNE / MMD / CORAL loss
-            feat = nn.AdaptiveAvgPool2d(1)(x_dg)
+            feat = nn.AdaptiveAvgPool2d(1)(x_att)
             feat = torch.flatten(feat, 1)
             return out, feat
             
