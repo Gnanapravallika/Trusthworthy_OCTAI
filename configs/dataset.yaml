@@ -1,0 +1,29 @@
+# TrusthOCTAI Dataset & Preprocessing Configuration
+
+dataset:
+  name: "Kermany_OCT2017"
+  num_classes: 4
+  classes: ["CNV", "DME", "DRUSEN", "NORMAL"]
+  class_mapping:
+    cnv: 0
+    dme: 1
+    drusen: 2
+    normal: 3
+
+image:
+  size: [224, 224]
+  channels: 3
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+augmentation:
+  horizontal_flip_prob: 0.5
+  rotation_limit: 10
+  brightness_limit: 0.1
+  contrast_limit: 0.1
+
+dataloader:
+  batch_size: 32
+  num_workers: 4
+  pin_memory: true
+  drop_last: false

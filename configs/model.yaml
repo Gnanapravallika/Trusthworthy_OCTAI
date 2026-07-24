@@ -1,0 +1,9 @@
+# TrusthOCTAI Model Architecture Configuration (3 Core Models)
+
+model:
+  name: "TrustOCT"
+  backbone: "resnet50"
+  feature_module: "multiscale"
+  attention: "cbam"
+  num_classes: 4
+  pretrained: true
